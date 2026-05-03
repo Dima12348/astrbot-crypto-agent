@@ -4,8 +4,9 @@
 Runs all research phases:
   1. Price & Volume (CoinGecko)
   2. DEX Pairs & Liquidity (DEXScreener)
-  3. Exchange data (Binance, Hyperliquid)
-  4. Compiles a structured report
+  3. Exchange prices across 9 CEX (Binance, Bybit, OKX, KuCoin, Gate.io, MEXC, Bitget, HTX, Hyperliquid)
+  4. Meme platforms (RugCheck safety, DEXScreener trending)
+  5. Compiles a structured report
 
 Usage:
     python full_research.py "PEPE"
@@ -69,7 +70,7 @@ def fmt_price(n):
 
 def coingecko_search(query):
     """Search CoinGecko and return top token data."""
-    print("  [1/3] CoinGecko — price & market data...")
+    print("  [1/5] CoinGecko — price & market data...")
     url = f"https://api.coingecko.com/api/v3/search?query={urllib.parse.quote(query)}"
     data = api_get(url)
     coins = data.get("coins", [])
@@ -93,7 +94,7 @@ def coingecko_search(query):
 
 def dexscreener_search(query, chain_filter=None):
     """Search DEXScreener for DEX pairs."""
-    print("  [2/3] DEXScreener — DEX pairs & liquidity...")
+    print("  [2/5] DEXScreener — DEX pairs & liquidity...")
     url = f"https://api.dexscreener.com/latest/dex/search?q={urllib.parse.quote(query)}"
     data = api_get(url)
     pairs = data.get("pairs", [])
@@ -104,48 +105,199 @@ def dexscreener_search(query, chain_filter=None):
     return pairs[:5]
 
 
-# ─── Phase 3: Exchange Data ───────────────────────────────────────────
+# ─── Phase 3: All Exchange Prices ─────────────────────────────────────
 
-def binance_ticker(symbol):
-    """Get Binance 24h ticker."""
-    print("  [3/3] Binance — CEX data...")
-    url = f"https://api.binance.com/api/v3/ticker/24hr?symbol={symbol.upper()}USDT"
+def query_binance(symbol):
+    url = f"https://api.binance.com/api/v3/ticker/24hr?symbol={symbol}USDT"
     data = api_get(url)
-    if "error" in data or data.get("code"):
-        print(f"    Not found on Binance spot")
-        return None
-    print(f"    Found on Binance: {symbol}/USDT")
-    return data
+    if data and "lastPrice" in data:
+        return {"exchange": "Binance", "price": float(data["lastPrice"]),
+                "volume": float(data.get("quoteVolume", 0)),
+                "high": float(data.get("highPrice", 0)),
+                "low": float(data.get("lowPrice", 0)),
+                "change_24h": float(data.get("priceChangePercent", 0))}
+    return None
 
 
-def hyperliquid_meta():
-    """Get Hyperliquid meta (all markets)."""
+def query_bybit(symbol):
+    url = f"https://api.bybit.com/v5/market/tickers?category=spot&symbol={symbol}USDT"
+    data = api_get(url)
+    if data and data.get("result", {}).get("list"):
+        item = data["result"]["list"][0]
+        return {"exchange": "Bybit", "price": float(item.get("lastPrice", 0)),
+                "volume": float(item.get("turnover24h", 0)),
+                "high": float(item.get("highPrice24h", 0)),
+                "low": float(item.get("lowPrice24h", 0)),
+                "change_24h": float(item.get("price24hPcnt", 0)) * 100}
+    return None
+
+
+def query_okx(symbol):
+    url = f"https://www.okx.com/api/v5/market/ticker?instId={symbol}-USDT"
+    data = api_get(url)
+    if data and data.get("data"):
+        item = data["data"][0]
+        last = float(item.get("last", 0))
+        open_ = float(item.get("open24h", 0))
+        change = ((last - open_) / open_ * 100) if open_ else 0
+        return {"exchange": "OKX", "price": last,
+                "volume": float(item.get("volCcy24h", 0)),
+                "high": float(item.get("high24h", 0)),
+                "low": float(item.get("low24h", 0)),
+                "change_24h": change}
+    return None
+
+
+def query_kucoin(symbol):
+    url = f"https://api.kucoin.com/api/v1/market/orderbook/level1?symbol={symbol}-USDT"
+    data = api_get(url)
+    if data and data.get("data"):
+        item = data["data"]
+        return {"exchange": "KuCoin", "price": float(item.get("price", 0)),
+                "volume": 0, "high": 0, "low": 0, "change_24h": 0}
+    return None
+
+
+def query_gateio(symbol):
+    url = f"https://api.gateio.ws/api/v4/spot/tickers?currency_pair={symbol}_USDT"
+    data = api_get(url)
+    if data and isinstance(data, list) and data:
+        item = data[0]
+        return {"exchange": "Gate.io", "price": float(item.get("last", 0)),
+                "volume": float(item.get("quote_volume", 0)),
+                "high": float(item.get("high_24h", 0)),
+                "low": float(item.get("low_24h", 0)),
+                "change_24h": float(item.get("change_percentage", 0))}
+    return None
+
+
+def query_mexc(symbol):
+    url = f"https://api.mexc.com/api/v3/ticker/24hr?symbol={symbol}USDT"
+    data = api_get(url)
+    if data and "lastPrice" in data:
+        return {"exchange": "MEXC", "price": float(data["lastPrice"]),
+                "volume": float(data.get("quoteVolume", 0)),
+                "high": float(data.get("highPrice", 0)),
+                "low": float(data.get("lowPrice", 0)),
+                "change_24h": float(data.get("priceChangePercent", 0))}
+    return None
+
+
+def query_bitget(symbol):
+    url = f"https://api.bitget.com/api/v2/spot/market/tickers?symbol={symbol}USDT"
+    data = api_get(url)
+    if data and data.get("data"):
+        item = data["data"][0] if isinstance(data["data"], list) else data["data"]
+        chg = float(item.get("change24h", 0))
+        if abs(chg) < 1:
+            chg *= 100
+        return {"exchange": "Bitget", "price": float(item.get("lastPr", 0)),
+                "volume": float(item.get("quoteVolume", 0)),
+                "high": float(item.get("high24h", 0)),
+                "low": float(item.get("low24h", 0)),
+                "change_24h": chg}
+    return None
+
+
+def query_htx(symbol):
+    url = f"https://api.huobi.pro/market/detail/merged?symbol={symbol.lower()}usdt"
+    data = api_get(url)
+    if data and data.get("tick"):
+        tick = data["tick"]
+        open_ = tick.get("open", 0)
+        last = tick.get("close", 0)
+        change = ((last - open_) / open_ * 100) if open_ else 0
+        return {"exchange": "HTX (Huobi)", "price": last,
+                "volume": float(tick.get("amount", 0)),
+                "high": float(tick.get("high", 0)),
+                "low": float(tick.get("low", 0)),
+                "change_24h": change}
+    return None
+
+
+def query_hyperliquid(symbol):
     url = "https://api.hyperliquid.xyz/info"
     req = urllib.request.Request(url, headers={**HEADERS, "Content-Type": "application/json"})
     try:
-        with urllib.request.urlopen(req, timeout=15, data=json.dumps({"type": "meta"}).encode()) as resp:
-            return json.loads(resp.read())
+        with urllib.request.urlopen(req, timeout=10, data=json.dumps({"type": "meta"}).encode()) as resp:
+            meta = json.loads(resp.read())
     except Exception:
-        return None
-
-
-def hyperliquid_search(symbol):
-    """Search for a symbol on Hyperliquid."""
-    print("    Checking Hyperliquid perps...")
-    meta = hyperliquid_meta()
-    if not meta:
         return None
     for asset in meta.get("universe", []):
         if asset.get("name", "").upper() == symbol.upper():
-            print(f"    Found on Hyperliquid: {symbol}-PERP")
-            return asset
-    print(f"    Not on Hyperliquid")
+            try:
+                with urllib.request.urlopen(req, timeout=10, data=json.dumps({"type": "allMids"}).encode()) as resp:
+                    mids = json.loads(resp.read())
+                mid = mids.get(symbol.upper())
+                if mid:
+                    return {"exchange": "Hyperliquid (perps)", "price": float(mid),
+                            "volume": 0, "high": 0, "low": 0, "change_24h": 0}
+            except Exception:
+                pass
     return None
+
+
+def query_all_exchanges(symbol):
+    """Query all 9 exchanges and return results sorted by volume."""
+    print(f"  [3/5] Exchanges — querying 9 CEX...")
+    EXCHANGES = [
+        ("Binance", query_binance),
+        ("Bybit", query_bybit),
+        ("OKX", query_okx),
+        ("KuCoin", query_kucoin),
+        ("Gate.io", query_gateio),
+        ("MEXC", query_mexc),
+        ("Bitget", query_bitget),
+        ("HTX", query_htx),
+        ("Hyperliquid", query_hyperliquid),
+    ]
+    results = []
+    for name, func in EXCHANGES:
+        print(f"    {name}...", end=" ", flush=True)
+        r = func(symbol)
+        if r:
+            print(f"✅ {fmt_price(r['price'])}")
+            results.append(r)
+        else:
+            print("❌")
+        time.sleep(0.2)
+    results.sort(key=lambda r: r["volume"], reverse=True)
+    print(f"    Found on {len(results)}/{len(EXCHANGES)} exchanges")
+    return results
+
+
+# ─── Phase 4: Meme Platforms (RugCheck) ───────────────────────────────
+
+def rugcheck_summary(contract_address):
+    """Get RugCheck safety summary for a Solana token."""
+    print("  [4/5] RugCheck — token safety (Solana)...")
+    url = f"https://api.rugcheck.xyz/v1/tokens/{contract_address}/report/summary"
+    data = api_get(url)
+    if "error" in data:
+        print(f"    Not applicable (not Solana or not found)")
+        return None
+    score = data.get("score_normalised", data.get("score", "?"))
+    risks = data.get("risks", [])
+    print(f"    Score: {score} | Risks: {len(risks)}")
+    return data
+
+
+# ─── Phase 5: DEXScreener Trending ────────────────────────────────────
+
+def dexscreener_trending():
+    """Get DEXScreener trending/boosted tokens."""
+    print("  [5/5] DEXScreener — trending tokens...")
+    url = "https://api.dexscreener.com/token-boosts/top/v1"
+    data = api_get(url)
+    if isinstance(data, list):
+        print(f"    Found {len(data)} boosted tokens")
+        return data[:15]
+    return []
 
 
 # ─── Report Compilation ───────────────────────────────────────────────
 
-def compile_report(query, cg_data, dex_pairs, binance_data, hl_data):
+def compile_report(query, cg_data, dex_pairs, exchange_results, rugcheck_data, trending):
     """Compile all data into a structured report."""
     symbol = query.upper()
     name = symbol
@@ -155,14 +307,14 @@ def compile_report(query, cg_data, dex_pairs, binance_data, hl_data):
         symbol = cg_data.get("symbol", symbol).upper()
 
     print()
-    print(f"{'='*65}")
+    print(f"{'='*70}")
     print(f"  🔍 CRYPTO RESEARCH REPORT: {name} (${symbol})")
     print(f"  Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}")
-    print(f"{'='*65}")
+    print(f"{'='*70}")
 
-    # ── Price & Volume ──
-    print(f"\n  📊 PRICE & VOLUME")
-    print(f"  {'─'*40}")
+    # ── Price & Volume (CoinGecko) ──
+    print(f"\n  📊 PRICE & VOLUME (CoinGecko)")
+    print(f"  {'─'*45}")
     if cg_data and "current_price" in cg_data:
         print(f"  Price:         {fmt_price(cg_data['current_price'])}")
         print(f"  Market Cap:    {fmt_num(cg_data.get('market_cap'))}")
@@ -190,7 +342,7 @@ def compile_report(query, cg_data, dex_pairs, binance_data, hl_data):
 
     # ── DEX Pairs ──
     print(f"\n  🔄 DEX PAIRS & LIQUIDITY")
-    print(f"  {'─'*40}")
+    print(f"  {'─'*45}")
     if dex_pairs:
         total_liq = 0
         total_vol = 0
@@ -226,30 +378,80 @@ def compile_report(query, cg_data, dex_pairs, binance_data, hl_data):
     else:
         print(f"  No DEX pairs found")
 
-    # ── CEX Data ──
-    print(f"\n  🏦 CEX DATA")
-    print(f"  {'─'*40}")
-    if binance_data:
-        print(f"  Binance {symbol}/USDT:")
-        print(f"    Price:     {fmt_price(float(binance_data.get('lastPrice', 0)))}")
-        print(f"    24h Vol:   {fmt_num(float(binance_data.get('quoteVolume', 0)))}")
-        print(f"    24h High:  {fmt_price(float(binance_data.get('highPrice', 0)))}")
-        print(f"    24h Low:   {fmt_price(float(binance_data.get('lowPrice', 0)))}")
-        print(f"    Trades:    {binance_data.get('count', 'N/A')}")
-    else:
-        print(f"  Not on Binance spot")
+    # ── Exchange Prices ──
+    print(f"\n  🏦 EXCHANGE PRICES (9 CEX)")
+    print(f"  {'─'*45}")
+    if exchange_results:
+        print(f"  {'Exchange':<22} {'Price':>14} {'24h Chg':>9} {'24h Volume':>12}")
+        print(f"  {'─'*22} {'─'*14} {'─'*9} {'─'*12}")
+        prices = []
+        for r in exchange_results:
+            price = r["price"]
+            if price > 0:
+                prices.append(price)
+            chg = f"{r['change_24h']:+.2f}%" if r['change_24h'] else "N/A"
+            vol = fmt_num(r['volume']) if r['volume'] else "N/A"
+            print(f"  {r['exchange']:<22} {fmt_price(price):>14} {chg:>9} {vol:>12}")
 
-    if hl_data:
-        print(f"\n  Hyperliquid {symbol}-PERP:")
-        print(f"    Available: ✅")
-        sz_dec = hl_data.get("szDecimals", "?")
-        print(f"    Size decimals: {sz_dec}")
+        if len(prices) >= 2:
+            min_p = min(prices)
+            max_p = max(prices)
+            spread = (max_p - min_p) / min_p * 100
+            print(f"\n  Price Spread: {spread:.3f}%", end="")
+            if spread > 1:
+                print(f"  ⚠️  Significant — arbitrage opportunity")
+            elif spread > 0.5:
+                print(f"  📈 Notable")
+            else:
+                print(f"  ✅ Normal")
     else:
-        print(f"  Not on Hyperliquid perps")
+        print(f"  Not found on any exchange")
+
+    # ── RugCheck (Solana) ──
+    if rugcheck_data:
+        print(f"\n  🛡️  RUGCHECK SAFETY (Solana)")
+        print(f"  {'─'*45}")
+        score = rugcheck_data.get("score_normalised", rugcheck_data.get("score", "?"))
+        risks = rugcheck_data.get("risks", [])
+        lp_locked = rugcheck_data.get("lpLockedPct", 0)
+
+        if isinstance(score, (int, float)):
+            if score <= 5:
+                status = "🟢 GOOD"
+            elif score <= 20:
+                status = "🟡 CAUTION"
+            else:
+                status = "🔴 DANGEROUS"
+        else:
+            status = "⚪ Unknown"
+
+        print(f"  Safety Score: {score} {status}")
+        print(f"  LP Locked: {lp_locked:.1f}%")
+
+        if risks:
+            print(f"  Risks found: {len(risks)}")
+            for r in risks[:6]:
+                level = r.get("level", "?")
+                name = r.get("name", "?")
+                desc = r.get("description", "")
+                icon = "🔴" if level == "danger" else ("🟡" if level == "warn" else "ℹ️")
+                print(f"    {icon} {name}: {desc}")
+        else:
+            print(f"  No risks detected ✅")
+
+    # ── Trending ──
+    if trending:
+        print(f"\n  🔥 DEXSCREENER TRENDING (Top Boosted)")
+        print(f"  {'─'*45}")
+        for i, t in enumerate(trending[:8], 1):
+            addr = t.get("tokenAddress", t.get("address", "?"))
+            chain = t.get("chainId", "?")
+            desc = t.get("description", "")[:50]
+            print(f"  {i}. {addr[:16]}... ({chain}) {desc}")
 
     # ── Risk Assessment ──
     print(f"\n  ⚠️  RISK ASSESSMENT")
-    print(f"  {'─'*40}")
+    print(f"  {'─'*45}")
     risks = []
     positives = []
 
@@ -281,18 +483,16 @@ def compile_report(query, cg_data, dex_pairs, binance_data, hl_data):
         elif top_liq < 100000:
             risks.append("DEX liquidity < $100K — thin liquidity")
 
-        # Check pair age
         created = dex_pairs[0].get("pairCreatedAt")
         if created:
-            age_days = (datetime.now() - datetime.fromtimestamp(created / 1000)).days
+            age_days = (datetime.now().timestamp() * 1000 - created) / 86400000
             if age_days < 1:
                 risks.append("Token pair < 24h old — very new, high risk")
             elif age_days < 7:
                 risks.append("Token pair < 7 days old — new token")
             elif age_days > 365:
-                positives.append(f"Token pair is {age_days} days old — established")
+                positives.append(f"Token pair is {age_days:.0f} days old — established")
 
-        # Check buy/sell ratio
         txns = dex_pairs[0].get("txns", {}).get("h24", {})
         buys = txns.get("buys", 0)
         sells = txns.get("sells", 0)
@@ -303,13 +503,23 @@ def compile_report(query, cg_data, dex_pairs, binance_data, hl_data):
             elif buy_pct < 20:
                 risks.append(f"Sell pressure {100-buy_pct:.0f}% — heavy selling")
 
-    if not binance_data and not hl_data:
-        risks.append("Not listed on major CEX — lower credibility")
+    if not exchange_results:
+        risks.append("Not listed on any major CEX — lower credibility")
     else:
-        if binance_data:
+        if len(exchange_results) >= 3:
+            positives.append(f"Listed on {len(exchange_results)} exchanges")
+        if any(r["exchange"] == "Binance" for r in exchange_results):
             positives.append("Listed on Binance")
-        if hl_data:
-            positives.append("Listed on Hyperliquid")
+        if any(r["exchange"] == "Hyperliquid (perps)" for r in exchange_results):
+            positives.append("Has Hyperliquid perps market")
+
+    if rugcheck_data:
+        rc_score = rugcheck_data.get("score_normalised", 0)
+        if isinstance(rc_score, (int, float)):
+            if rc_score > 20:
+                risks.append(f"RugCheck score {rc_score} — high risk token")
+            elif rc_score <= 5:
+                positives.append(f"RugCheck score {rc_score} — safe")
 
     if risks:
         for r in risks:
@@ -322,7 +532,7 @@ def compile_report(query, cg_data, dex_pairs, binance_data, hl_data):
 
     # ── Summary ──
     print(f"\n  💡 SUMMARY")
-    print(f"  {'─'*40}")
+    print(f"  {'─'*45}")
     risk_score = len(risks)
     if risk_score == 0:
         print(f"  Risk level: LOW — No major red flags detected")
@@ -331,14 +541,26 @@ def compile_report(query, cg_data, dex_pairs, binance_data, hl_data):
     else:
         print(f"  Risk level: HIGH — Multiple red flags detected")
 
-    print(f"\n  Data sources: CoinGecko, DEXScreener", end="")
-    if binance_data:
-        print(", Binance", end="")
-    if hl_data:
-        print(", Hyperliquid", end="")
-    print()
+    sources = ["CoinGecko", "DEXScreener"]
+    if exchange_results:
+        ex_names = [r["exchange"] for r in exchange_results]
+        sources.extend(ex_names)
+    if rugcheck_data:
+        sources.append("RugCheck")
+    print(f"\n  Data sources: {', '.join(sources)}")
+
+    print(f"\n  🔗 For X/Twitter sentiment, use web_search:")
+    print(f"     web_search(query=\"{symbol} crypto pump site:x.com\")")
+    print(f"     web_search(query=\"{symbol} crypto news today\")")
+
+    print(f"\n  🔗 For meme platforms, use web_search:")
+    print(f"     web_search(query=\"{symbol} site:gmgn.ai\")")
+    print(f"     web_search(query=\"{symbol} site:dextools.io\")")
+    print(f"     web_search(query=\"{symbol} site:pump.fun\")")
+    print(f"     web_search(query=\"{symbol} site:birdeye.so\")")
+
     print(f"\n  ⚠️  This is NOT financial advice. Always DYOR.")
-    print(f"{'='*65}")
+    print(f"{'='*70}")
 
 
 # ─── Main ─────────────────────────────────────────────────────────────
@@ -362,20 +584,31 @@ def main():
     print(f"   Chain filter: {chain_filter or 'all'}")
     print()
 
-    # Phase 1
+    # Phase 1: CoinGecko
     cg_data = coingecko_search(query)
     if cg_data and "symbol" in cg_data:
         symbol_guess = cg_data["symbol"].upper()
 
-    # Phase 2
+    # Phase 2: DEXScreener
     dex_pairs = dexscreener_search(query, chain_filter)
 
-    # Phase 3
-    binance_data = binance_ticker(symbol_guess)
-    hl_data = hyperliquid_search(symbol_guess)
+    # Phase 3: All Exchange Prices
+    exchange_results = query_all_exchanges(symbol_guess)
 
-    # Compile
-    compile_report(query, cg_data, dex_pairs, binance_data, hl_data)
+    # Phase 4: RugCheck (Solana tokens)
+    rugcheck_data = None
+    if dex_pairs:
+        sol_pairs = [p for p in dex_pairs if p.get("chainId") == "solana"]
+        if sol_pairs:
+            contract = sol_pairs[0].get("baseToken", {}).get("address", "")
+            if contract:
+                rugcheck_data = rugcheck_summary(contract)
+
+    # Phase 5: DEXScreener Trending
+    trending = dexscreener_trending()
+
+    # Compile report
+    compile_report(query, cg_data, dex_pairs, exchange_results, rugcheck_data, trending)
 
 
 if __name__ == "__main__":

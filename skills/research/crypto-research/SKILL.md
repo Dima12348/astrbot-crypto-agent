@@ -1,12 +1,12 @@
 ---
 name: crypto-research
-description: "Use when investigating a crypto token pump, tracking whale wallets, or analyzing on-chain activity. Searches X/Twitter, exchanges, DEXScreener, and Arkham for comprehensive token intelligence."
-version: 1.0.0
+description: "Use when investigating a crypto token pump, tracking whale wallets, or analyzing on-chain activity. Searches 9 CEX exchanges, DEXScreener, RugCheck, meme platforms (GMGN, DexTools, Pump.fun, Birdeye), X/Twitter, and Arkham for comprehensive token intelligence."
+version: 2.0.0
 author: User
 license: MIT
 metadata:
   hermes:
-    tags: [Crypto, Research, Trading, DeFi, OnChain, Whales, X, Twitter, Arkham, Hyperliquid]
+    tags: [Crypto, Research, Trading, DeFi, OnChain, Whales, X, Twitter, Arkham, Hyperliquid, Meme, GMGN, PumpFun, RugCheck]
     related_skills: [polymarket]
 ---
 
@@ -21,6 +21,8 @@ Investigate crypto token pumps, track whale wallets, and compile on-chain intell
 - Tracking whale wallets and large fund movements
 - Monitoring DEX/CEX volume and liquidity for a token
 - Quick due diligence before entering a position
+- Checking per-exchange prices (prices differ between exchanges!)
+- Analyzing meme tokens (safety, rug pull risk, social buzz)
 
 ## Don't Use For
 
@@ -50,7 +52,35 @@ web_extract(urls=["https://api.coingecko.com/api/v3/search?query=TOKEN_SYMBOL"])
 web_extract(urls=["https://api.dexscreener.com/latest/dex/search?q=TOKEN_SYMBOL"])
 ```
 
-### Phase 2 — X/Twitter Sentiment (2-5 min)
+### Phase 2 — Exchange Price Comparison (2-3 min)
+
+**Prices differ between exchanges!** This is critical for:
+- Finding arbitrage opportunities
+- Verifying real market price
+- Spotting wash trading on specific exchanges
+
+```bash
+# Query ALL 9 exchanges at once
+python3 ${HERMES_SKILL_DIR}/scripts/exchange_prices.py "TOKEN_SYMBOL"
+```
+
+Exchanges covered (all free, no auth needed):
+
+| Exchange | API | Notes |
+|----------|-----|-------|
+| Binance | `api.binance.com/api/v3/ticker/24hr` | Largest volume |
+| Bybit | `api.bybit.com/v5/market/tickers` | Derivatives leader |
+| OKX | `okx.com/api/v5/market/ticker` | Major global exchange |
+| KuCoin | `api.kucoin.com/api/v1/market/orderbook` | Altcoin hub |
+| Gate.io | `api.gateio.ws/api/v4/spot/tickers` | Wide token selection |
+| MEXC | `api.mexc.com/api/v3/ticker/24hr` | Many new listings |
+| Bitget | `api.bitget.com/api/v2/spot/market/tickers` | Copy trading |
+| HTX (Huobi) | `api.huobi.pro/market/detail/merged` | Asian markets |
+| Hyperliquid | `api.hyperliquid.xyz/info` | Perps DEX, mid prices |
+
+The script outputs a price table with spread analysis — if spread > 1%, flag as arbitrage opportunity.
+
+### Phase 3 — X/Twitter Sentiment (2-5 min)
 
 Search for social buzz around the token. Use multiple angles.
 
@@ -79,49 +109,50 @@ Look for:
 - Coordinated shill campaigns (multiple accounts posting same text)
 - FUD or scam allegations
 
-### Phase 3 — Exchange & DEX Activity (2-3 min)
+**Note:** AstrBot has no native X/Twitter platform adapter. All X/Twitter research is done via web_search and Nitter scraping.
 
-Check where the token is trading and liquidity depth.
+### Phase 4 — Meme Token Platforms (2-3 min)
 
-**DEXScreener (best for DEX data):**
+For meme tokens (Solana memes, new tokens, pump.fun launches), use the dedicated script:
+
 ```bash
-# Full pair data — liquidity, volume, price changes, txns
-python3 ${HERMES_SKILL_DIR}/scripts/dexscreener_search.py "TOKEN_SYMBOL"
+# Meme platform research — RugCheck safety + DEXScreener data
+python3 ${HERMES_SKILL_DIR}/scripts/meme_platforms.py "TOKEN_SYMBOL"
+python3 ${HERMES_SKILL_DIR}/scripts/meme_platforms.py "CONTRACT_ADDRESS" --chain solana
 ```
 
-**Hyperliquid (perps DEX):**
-```bash
-# Check if token has perps market on Hyperliquid
-curl -s "https://api.hyperliquid.xyz/info" \
-  -H "Content-Type: application/json" \
-  -d '{"type": "meta"}' | python3 -c "
-import sys, json
-data = json.load(sys.stdin)
-universe = data.get('universe', [])
-for asset in universe:
-    name = asset.get('name', '').upper()
-    if 'TOKEN_SYMBOL' in name:
-        print(json.dumps(asset, indent=2))
-"
+This queries:
+- **RugCheck** (api.rugcheck.xyz) — token safety score, risk flags, LP lock %
+- **DEXScreener** — all DEX pairs, liquidity, buy/sell ratios, social links
+- **DEXScreener Trending** — top boosted tokens right now
+
+For platforms behind Cloudflare (APIs blocked), use web_search:
+
+```
+# GMGN — Solana meme token analytics, smart money tracking
+web_search(query="TOKEN_SYMBOL site:gmgn.ai")
+web_extract(urls=["https://gmgn.ai/token/CHAIN/TOKEN_ADDRESS"])
+
+# DexTools — DEX analytics, pair explorer, charts
+web_search(query="TOKEN_SYMBOL site:dextools.io")
+web_extract(urls=["https://www.dextools.io/app/en/pair-explorer/TOKEN_ADDRESS"])
+
+# Pump.fun — Solana token launcher, bonding curve data
+web_search(query="TOKEN_SYMBOL site:pump.fun")
+
+# Birdeye — Solana/ETH token analytics, wallet tracking
+web_search(query="TOKEN_SYMBOL site:birdeye.so")
+web_extract(urls=["https://birdeye.so/token/TOKEN_ADDRESS?chain=solana"])
 ```
 
-**Binance/Bybit spot data (via CCXT if installed, otherwise curl):**
-```bash
-# Binance ticker
-curl -s "https://api.binance.com/api/v3/ticker/24hr?symbol=TOKEN_SYMBOLUSDT" | python3 -m json.tool
-
-# Bybit ticker
-curl -s "https://api.bybit.com/v5/market/tickers?category=spot&symbol=TOKEN_SYMBOLUSDT" | python3 -m json.tool
-```
-
-### Phase 4 — Whale & Wallet Tracking (3-5 min)
+### Phase 5 — Whale & Wallet Tracking (3-5 min)
 
 **Arkham Intelligence (primary source for wallet tracking):**
 
 Use web_search to find Arkham entity pages:
 ```
 web_search(query="TOKEN_SYMBOL site:platform.arkhamintelligence.com")
-web_search(query="TOKEN_SYMBOL whale wallet arkham"
+web_search(query="TOKEN_SYMBOL whale wallet arkham")
 ```
 
 Then extract data:
@@ -147,7 +178,7 @@ Look for:
 - New wallets created in last 24h holding significant amounts
 - Known whale wallets accumulating
 
-### Phase 5 — Compile Report (1-2 min)
+### Phase 6 — Compile Report (1-2 min)
 
 After gathering all data, compile a structured report:
 
@@ -155,11 +186,20 @@ After gathering all data, compile a structured report:
 ## 🔍 Crypto Research Report: [TOKEN_NAME] ($SYMBOL)
 
 ### 📊 Price & Volume
-- Current Price: $X.XX
+- Current Price: $X.XX (CoinGecko aggregated)
 - 24h Change: +XX%
 - 24h Volume: $XXM
 - Market Cap: $XXM
 - Liquidity: $XXM (DEX) / $XXM (CEX)
+
+### 🏦 Exchange Prices
+| Exchange | Price | 24h Change | Volume |
+|----------|-------|------------|--------|
+| Binance  | $X.XX | +X%        | $XXM   |
+| OKX      | $X.XX | +X%        | $XXM   |
+| Bybit    | $X.XX | +X%        | $XXM   |
+| ...      | ...   | ...        | ...    |
+- Price Spread: X.XX% (Low: $X on EX1 / High: $X on EX2)
 
 ### 🐦 Social Sentiment (X/Twitter)
 - Buzz level: HIGH / MEDIUM / LOW
@@ -167,10 +207,17 @@ After gathering all data, compile a structured report:
 - Sentiment: POSITIVE / NEGATIVE / MIXED
 - Red flags: [coordinated shills? bot activity?]
 
-### 📈 Exchange Activity
-- Where trading: [list exchanges/pairs]
+### 🔄 DEX Activity
+- Where trading: [list DEX pairs/chains]
 - Volume distribution: CEX vs DEX split
 - Notable: [new listings? volume spikes?]
+
+### 🐸 Meme Platform Data
+- RugCheck Score: X (GOOD / CAUTION / DANGEROUS)
+- LP Locked: XX%
+- Risks: [list RugCheck warnings]
+- GMGN Smart Money: [if available]
+- DexTools: [pair explorer link]
 
 ### 🐋 Whale Activity
 - Top 10 holder concentration: XX%
@@ -192,14 +239,25 @@ or does it look like manipulation/paid promotion?]
 | Data Source | What It Provides | How to Access |
 |-------------|-----------------|---------------|
 | CoinGecko | Price, volume, market cap, metadata | `scripts/coingecko_search.py` (free API) |
-| DEXScreener | DEX pairs, liquidity, txns, price charts | `scripts/dexscreener_search.py` (free API) |
-| Binance API | Spot/futures ticker, order book depth | `curl` (free, no auth) |
-| Bybit API | Spot/derivatives ticker | `curl` (free, no auth) |
-| Hyperliquid | Perps markets, open interest | `curl` (free, no auth) |
+| DEXScreener | DEX pairs, liquidity, txns, trending | `scripts/dexscreener_search.py` (free API) |
+| Binance | Spot ticker, 24h stats | `scripts/exchange_prices.py` (free, no auth) |
+| Bybit | Spot/derivatives ticker | `scripts/exchange_prices.py` (free, no auth) |
+| OKX | Spot ticker, 24h stats | `scripts/exchange_prices.py` (free, no auth) |
+| KuCoin | Spot orderbook L1 | `scripts/exchange_prices.py` (free, no auth) |
+| Gate.io | Spot ticker, 24h stats | `scripts/exchange_prices.py` (free, no auth) |
+| MEXC | Spot ticker, 24h stats | `scripts/exchange_prices.py` (free, no auth) |
+| Bitget | Spot ticker, 24h stats | `scripts/exchange_prices.py` (free, no auth) |
+| HTX (Huobi) | Spot merged ticker | `scripts/exchange_prices.py` (free, no auth) |
+| Hyperliquid | Perps markets, mid prices | `scripts/exchange_prices.py` (free, no auth) |
+| RugCheck | Token safety, risks, LP lock % | `scripts/meme_platforms.py` (free API) |
+| DEXScreener Trending | Top boosted tokens | `scripts/meme_platforms.py` (free API) |
+| GMGN | Meme analytics, smart money | `web_search` (API behind Cloudflare) |
+| DexTools | DEX pair explorer, charts | `web_search` (API behind Cloudflare) |
+| Pump.fun | Solana token launcher data | `web_search` (API behind Cloudflare) |
+| Birdeye | Solana token analytics | `web_search` (API behind Cloudflare) |
 | X/Twitter | Social sentiment, news, KOL mentions | `web_search` / Nitter |
 | Arkham | Whale wallets, entity tracking, fund flows | `web_search` + `web_extract` |
 | Etherscan | ERC-20 transfers, holders, contracts | `web_extract` (free tier) |
-| DexScreener | Token pairs across all chains | `curl` (free, no auth) |
 
 ## Red Flags Checklist
 
@@ -208,13 +266,17 @@ When analyzing a pump, check for these warning signs:
 - [ ] Volume spike without news catalyst
 - [ ] Concentrated top holders (>60% in top 10)
 - [ ] Token contract verified? (Etherscan)
-- [ ] Liquidity locked? (check DEXScreener)
+- [ ] Liquidity locked? (check RugCheck / DEXScreener)
 - [ ] Social mentions from accounts created recently
 - [ ] Same text posted by multiple accounts (coordinated shill)
 - [ ] No GitHub / dev activity / audit
 - [ ] Token age < 7 days
 - [ ] Sudden volume from 1-2 exchanges only
 - [ ] Large transfers to CEX (whales preparing to dump)
+- [ ] Price spread > 1% between exchanges (possible manipulation)
+- [ ] RugCheck score > 20 (high risk)
+- [ ] LP locked < 50% (dev can drain liquidity)
+- [ ] Only on DEX, not on any CEX (lower credibility)
 
 ## Common Pitfalls
 
@@ -223,6 +285,9 @@ When analyzing a pump, check for these warning signs:
 3. **CoinGecko rate limits** — Free tier: ~30 req/min. Add delays between requests.
 4. **Chain-specific tokens** — A token on Solana won't appear on Etherscan. Identify the chain first (DEXScreener shows chain info).
 5. **Wash trading** — High volume on low-liquidity DEX pairs can be faked. Cross-reference CEX volume.
+6. **Price differences** — Prices CAN and DO differ between exchanges. Don't rely on a single source. Use `exchange_prices.py` to compare.
+7. **Meme token safety** — Always run RugCheck for Solana tokens. A token can pump 1000% and still be a rug pull.
+8. **Cloudflare blocks** — GMGN, Pump.fun APIs are behind Cloudflare. Use web_search/web_extract as fallback.
 
 ## Helper Scripts
 
@@ -235,13 +300,31 @@ python3 ${HERMES_SKILL_DIR}/scripts/coingecko_search.py "PEPE"
 # Search DEXScreener for DEX pairs
 python3 ${HERMES_SKILL_DIR}/scripts/dexscreener_search.py "PEPE"
 
-# Full research pipeline (runs all phases, outputs report)
+# Compare prices across 9 exchanges
+python3 ${HERMES_SKILL_DIR}/scripts/exchange_prices.py "PEPE"
+
+# Meme token research (RugCheck + DEXScreener trending)
+python3 ${HERMES_SKILL_DIR}/scripts/meme_platforms.py "WIF"
+python3 ${HERMES_SKILL_DIR}/scripts/meme_platforms.py "DEZ...263" --chain solana
+
+# Full research pipeline (runs all 5 phases, outputs report)
 python3 ${HERMES_SKILL_DIR}/scripts/full_research.py "PEPE"
+python3 ${HERMES_SKILL_DIR}/scripts/full_research.py "VIRTUAL" --chain base
 ```
+
+## X/Twitter Integration Note
+
+AstrBot has **no native X/Twitter platform adapter**. There is no built-in way to post to X, read timelines, or interact with X/Twitter. The crypto research skill uses `web_search` and Nitter public instances to scrape X/Twitter content as part of its research workflow.
+
+If you need deeper X/Twitter integration:
+- Add a Twitter MCP server to AstrBot's MCP configuration (dashboard → Extensions → MCP Servers)
+- Use `web_search` for X/Twitter content as a workaround
+- Consider adding a custom platform adapter for X/Twitter
 
 ## Notes
 
 - All APIs used are free and require no authentication
 - For deeper Arkham data, consider their paid API if you need it regularly
 - X/Twitter data quality depends on web_search coverage
+- GMGN/Pump.fun/DexTools/Birdeye require web_search (APIs behind Cloudflare)
 - This skill is for RESEARCH only — never financial advice
