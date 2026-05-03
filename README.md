@@ -1,286 +1,262 @@
-![astrbot-github-banner-v2-light-0405_副本](https://github.com/user-attachments/assets/36fb04e4-cc75-4454-bd8b-049d11aa86f9)
+# 🤖 AstrBot Crypto Agent
 
+A fork of [AstrBot](https://github.com/Soulter/AstrBot) — an open-source multi-platform AI chatbot — extended with a **crypto research skill** for token analysis, exchange price comparison, and X/Twitter sentiment tracking.
 
-<div align="center">
+> ⚠️ **This is a RESEARCH tool, NOT financial advice. Always DYOR.**
 
-<a href="https://github.com/AstrBotDevs/AstrBot/blob/master/README_zh.md">简体中文</a> ｜
-<a href="https://github.com/AstrBotDevs/AstrBot/blob/master/README_zh-TW.md">繁體中文</a> ｜
-<a href="https://github.com/AstrBotDevs/AstrBot/blob/master/README_ja.md">日本語</a> ｜
-<a href="https://github.com/AstrBotDevs/AstrBot/blob/master/README_fr.md">Français</a> ｜
-<a href="https://github.com/AstrBotDevs/AstrBot/blob/master/README_ru.md">Русский</a>
+## ✨ Features
 
-<br>
+### 🧠 AI Chatbot (AstrBot Core)
+- **18+ messaging platforms**: Telegram, Discord, Slack, QQ, WeChat, LINE, Feishu, DingTalk, KOOK, and more
+- **30+ LLM providers**: OpenAI, Anthropic, Gemini, Groq, xAI, DashScope, vLLM, and any OpenAI-compatible API
+- **TTS/STT**: OpenAI Whisper, Edge TTS, Azure TTS, FishAudio, GPT-SoVITS, MiMo
+- **Web Dashboard** (Vue 3 + Vuetify) for configuration at `http://localhost:6185`
+- **Plugin system** ("Stars") with 1000+ community plugins
+- **RAG Knowledge Base** with FAISS vector search
+- **MCP (Model Context Protocol)** support for tool integration
+- **Sandboxed code execution** via Shipyard
 
-<div>
-<a href="https://trendshift.io/repositories/12875" target="_blank"><img src="https://trendshift.io/api/badge/repositories/12875" alt="Soulter%2FAstrBot | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
-<a href="https://hellogithub.com/repository/AstrBotDevs/AstrBot" target="_blank"><img src="https://api.hellogithub.com/v1/widgets/recommend.svg?rid=d127d50cd5e54c5382328acc3bb25483&claim_uid=ZO9by7qCXgSd6Lp&t=2" alt="Featured｜HelloGitHub" style="width: 250px; height: 54px;" width="250" height="54" /></a>
-</div>
+### 🔍 Crypto Research Skill
+A dedicated skill for investigating crypto token pumps, tracking whale wallets, and analyzing market data:
 
-<br>
+| Phase | Source | What It Does |
+|-------|--------|-------------|
+| 1 | **CoinGecko** | Price, volume, market cap, ATH, 1h/24h/7d/30d changes |
+| 2 | **DEXScreener** | DEX pairs, liquidity, buy/sell ratios, trending tokens |
+| 3 | **9 CEX Exchanges** | Price comparison across Binance, Bybit, OKX, KuCoin, Gate.io, MEXC, Bitget, HTX, Hyperliquid |
+| 4 | **X/Twitter** | Social sentiment analysis via web search + Nitter scraping |
+| 5 | **Meme Platforms** | RugCheck safety scores, GMGN, DexTools, Pump.fun, Birdeye |
+| 6 | **Whale Tracking** | Arkham Intelligence, Etherscan, Solscan wallet analysis |
 
-<div>
-<img src="https://img.shields.io/github/v/release/AstrBotDevs/AstrBot?color=76bad9" href="https://github.com/AstrBotDevs/AstrBot/releases/latest">
-<img src="https://img.shields.io/badge/python-3.10+-blue.svg" alt="python">
-<img src="https://deepwiki.com/badge.svg" href="https://deepwiki.com/AstrBotDevs/AstrBot">
-<a href="https://zread.ai/AstrBotDevs/AstrBot" target="_blank"><img src="https://img.shields.io/badge/Ask_Zread-_.svg?style=flat&color=00b0aa&labelColor=000000&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQuOTYxNTYgMS42MDAxSDIuMjQxNTZDMS44ODgxIDEuNjAwMSAxLjYwMTU2IDEuODg2NjQgMS42MDE1NiAyLjI0MDFWNC45NjAxQzEuNjAxNTYgNS4zMTM1NiAxLjg4ODEgNS42MDAxIDIuMjQxNTYgNS42MDAxSDQuOTYxNTZDNS4zMTUwMiA1LjYwMDEgNS42MDE1NiA1LjMxMzU2IDUuNjAxNTYgNC45NjAxVjIuMjQwMUM1LjYwMTU2IDEuODg2NjQgNS4zMTUwMiAxLjYwMDEgNC45NjE1NiAxLjYwMDFaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik00Ljk2MTU2IDEwLjM5OTlIMi4yNDE1NkMxLjg4ODEgMTAuMzk5OSAxLjYwMTU2IDEwLjY4NjQgMS42MDE1NiAxMS4wMzk5VjEzLjc1OTlDMS42MDE1NiAxNC4xMTM0IDEuODg4MSAxNC4zOTk5IDIuMjQxNTYgMTQuMzk5OUg0Ljk2MTU2QzUuMzE1MDIgMTQuMzk5OSA1LjYwMTU2IDE0LjExMzQgNS42MDE1NiAxMy43NTk5VjExLjAzOTlDNS42MDE1NiAxMC42ODY0IDUuMzE1MDIgMTAuMzk5OSA0Ljk2MTU2IDEwLjM5OTlaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik0xMy43NTg0IDEuNjAwMUgxMS4wMzg0QzEwLjY4NSAxLjYwMDEgMTAuMzk4NCAxLjg4NjY0IDEwLjM5ODQgMi4yNDAxVjQuOTYwMUMxMC4zOTg0IDUuMzEzNTYgMTAuNjg1IDUuNjAwMSAxMS4wMzg0IDUuNjAwMUgxMy43NTg0QzE0LjExMTkgNS42MDAxIDE0LjM5ODQgNS4zMTM1NiAxNC4zOTg0IDQuOTYwMVYyLjI0MDFDMTQuMzk4NCAxLjg4NjY0IDE0LjExMTkgMS42MDAxIDEzLjc1ODQgMS42MDAxWiIgZmlsbD0iI2ZmZiIvPgo8cGF0aCBkPSJNNCAxMkwxMiA0TDQgMTJaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik00IDEyTDEyIDQiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K&logoColor=ffffff" alt="zread"/></a>
-<a href="https://hub.docker.com/r/soulter/astrbot"><img alt="Docker pull" src="https://img.shields.io/docker/pulls/soulter/astrbot.svg?color=76bad9"/></a>
-<img src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.soulter.top%2Fastrbot%2Fplugin-num&query=%24.result&suffix=%20plugins&label=Marketplace&cacheSeconds=3600">
-<img src="https://gitcode.com/Soulter/AstrBot/star/badge.svg" href="https://gitcode.com/Soulter/AstrBot">
-</div>
-
-<br>
-
-<a href="https://astrbot.app/">Documentation</a> ｜
-<a href="https://blog.astrbot.app/">Blog</a> ｜
-<a href="https://astrbot.featurebase.app/roadmap">Roadmap</a> ｜
-<a href="https://github.com/AstrBotDevs/AstrBot/issues">Issue Tracker</a> ｜
-<a href="mailto:community@astrbot.app">Email Support</a>
-</div>
-
-AstrBot is an open-source all-in-one Agent chatbot platform that integrates with mainstream instant messaging apps. It provides reliable and scalable conversational AI infrastructure for individuals, developers, and teams. Whether you're building a personal AI companion, intelligent customer service, automation assistant, or enterprise knowledge base, AstrBot enables you to quickly build production-ready AI applications within your IM platform workflows.
-
-![screenshot_1 5x_postspark_2026-02-27_22-37-45](https://github.com/user-attachments/assets/f17cdb90-52d7-4773-be2e-ff64b566af6b)
-
-## Key Features
-
-1. 💯 Free & Open Source.
-2. ✨ AI LLM Conversations, Multimodal, Agent, MCP, Skills, Knowledge Base, Persona Settings, Auto Context Compression.
-3. 🤖 Supports integration with Dify, Alibaba Cloud Bailian, Coze, and other agent platforms.
-4. 🌐 Multi-Platform: QQ, WeChat Work, Feishu, DingTalk, WeChat Official Accounts, Telegram, Slack, and [more](#supported-messaging-platforms).
-5. 📦 Plugin Extensions with 1000+ plugins available for one-click installation.
-6. 🛡️ [Agent Sandbox](https://docs.astrbot.app/use/astrbot-agent-sandbox.html) for isolated, safe execution of code, shell calls, and session-level resource reuse.
-7. 💻 WebUI Support.
-8. 🌈 Web ChatUI Support with built-in agent sandbox and web search.
-9. 🌐 Internationalization (i18n) Support.
-
-<br>
-
-<table align="center">
-  <tr align="center">
-    <th>💙 Role-playing & Emotional Companionship</th>
-    <th>✨ Proactive Agent</th>
-    <th>🚀 General Agentic Capabilities</th>
-    <th>🧩 1000+ Community Plugins</th>
-  </tr>
-  <tr>
-    <td align="center"><p align="center"><img width="984" height="1746" alt="99b587c5d35eea09d84f33e6cf6cfd4f" src="https://github.com/user-attachments/assets/89196061-3290-458d-b51f-afa178049f84" /></p></td>
-    <td align="center"><p align="center"><img width="976" height="1612" alt="c449acd838c41d0915cc08a3824025b1" src="https://github.com/user-attachments/assets/f75368b4-e022-41dc-a9e0-131c3e73e32e" /></p></td>
-    <td align="center"><p align="center"><img width="974" height="1732" alt="image" src="https://github.com/user-attachments/assets/e22a3968-87d7-4708-a7cd-e7f198c7c32e" /></p></td>
-    <td align="center"><p align="center"><img width="976" height="1734" alt="image" src="https://github.com/user-attachments/assets/0952b395-6b4a-432a-8a50-c294b7f89750" /></p></td>
-  </tr>
-</table>
-
-## Quick Start
-
-### One-Click Deployment
-
-For users who want to quickly experience AstrBot, are familiar with command-line usage, and can install a `uv` environment on their own, we recommend the `uv` one-click deployment method ⚡️:
+**Key scripts** (all Python stdlib, no pip install needed):
 
 ```bash
-uv tool install astrbot --python 3.12
-astrbot init # Only execute this command for the first time to initialize the environment
+# Full research pipeline (all 6 phases)
+python3 scripts/full_research.py "PEPE"
+
+# Individual scripts
+python3 scripts/coingecko_search.py "BTC"          # Price & market data
+python3 scripts/dexscreener_search.py "PEPE"        # DEX pairs & liquidity
+python3 scripts/exchange_prices.py "ETH"            # 9 exchange price comparison
+python3 scripts/twitter_search.py "SOL crypto"      # X/Twitter sentiment
+python3 scripts/meme_platforms.py "WIF"             # Meme token safety
+```
+
+## 🚀 Installation
+
+### Option 1: Docker (Recommended)
+
+```bash
+# Clone the repo
+git clone https://github.com/Dima12348/astrbot-crypto-agent.git
+cd astrbot-crypto-agent
+
+# Start with Docker Compose
+docker compose up -d
+
+# Dashboard available at http://localhost:6185
+```
+
+The crypto-research skill is automatically copied to `data/skills/` on first start.
+
+### Option 2: Python (Local)
+
+**Requirements:** Python 3.12+, pip/uv
+
+```bash
+# Clone the repo
+git clone https://github.com/Dima12348/astrbot-crypto-agent.git
+cd astrbot-crypto-agent
+
+# Create virtual environment
+python3 -m venv .venv
+source .venv/bin/activate   # Linux/macOS
+# .venv\Scripts\activate    # Windows
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Start the bot
+python main.py
+
+# Dashboard available at http://localhost:6185
+```
+
+### Option 3: CLI
+
+```bash
+pip install astrbot
+astrbot init
 astrbot run
 ```
 
-> Requires [uv](https://docs.astral.sh/uv/) to be installed.
-> AstrBot requires Python 3.12 or later. The `--python 3.12` option ensures that `uv` creates the tool environment with Python 3.12.
+### Option 4: One-Click Cloud
 
-> [!NOTE]
-> For macOS users: due to macOS security checks, the first run of the `astrbot` command may take longer (about 10-20s).
+[![Deploy on RainYun](https://store.rainyun.com/img/badge.svg)](https://app.rainyun.com/apps/?type=docker&id=astrbot)
 
-Update `astrbot`:
+## ⚙️ Configuration
 
-```bash
-uv tool upgrade astrbot --python 3.12
+After starting, open the **Web Dashboard** at `http://localhost:6185` to configure:
+
+### 1. Add an LLM Provider
+Go to **Settings → Providers** and add your API key:
+- OpenAI / Anthropic / Gemini / Groq / xAI
+- Or any OpenAI-compatible endpoint (local models, proxies)
+
+### 2. Connect a Messaging Platform
+Go to **Settings → Platforms** and add:
+- **Telegram**: Get bot token from [@BotFather](https://t.me/BotFather)
+- **Discord**: Create bot at [Discord Developer Portal](https://discord.com/developers)
+- **Slack**: Create app at [Slack API](https://api.slack.com/apps)
+- **QQ**: Use NapCat or go-cqhttp
+- Others: See [AstrBot documentation](https://astrbot.soulter.top)
+
+### 3. Enable Crypto Research Skill
+The skill is auto-loaded from `data/skills/research/crypto-research/`. No extra configuration needed — just ask the bot to research a token:
+
+```
+"Research PEPE for me"
+"Why did VIRTUAL pump today?"
+"Check exchange prices for ETH"
+"Analyze meme token WIF on Solana"
 ```
 
-> [!WARNING]
-> AstrBot deployed via `uv` **does not support upgrading through the WebUI**. To update, please run the command above from the command line.
+## 📁 Project Structure
 
-### Docker Deployment
-
-For users familiar with containers and looking for a more stable, production-ready deployment method, we recommend deploying AstrBot with Docker / Docker Compose.
-
-Please refer to the official documentation: [Deploy AstrBot with Docker](https://docs.astrbot.app/deploy/astrbot/docker.html#%E4%BD%BF%E7%94%A8-docker-%E9%83%A8%E7%BD%B2-astrbot).
-
-### Deploy on RainYun
-
-For users who want one-click deployment and do not want to manage servers themselves, we recommend RainYun's one-click cloud deployment service ☁️:
-
-[![Deploy on RainYun](https://rainyun-apps.cn-nb1.rains3.com/materials/deploy-on-rainyun-en.svg)](https://app.rainyun.com/apps/rca/store/5994?ref=NjU1ODg0)
-
-### Desktop Application Deployment
-
-For users who want to use AstrBot on desktop and mainly use ChatUI, we recommend AstrBot App.
-
-Visit [AstrBot-desktop](https://github.com/AstrBotDevs/AstrBot-desktop) to download and install; this method is designed for desktop usage and is not recommended for server scenarios.
-
-### Launcher Deployment
-
-For desktop users who also want fast deployment and isolated multi-instance usage, we recommend AstrBot Launcher.
-
-Visit [AstrBot Launcher](https://github.com/Raven95676/astrbot-launcher) to download and install.
-
-### Deploy on Replit
-
-Replit deployment is maintained by the community and is suitable for online demos and lightweight trials.
-
-[![Run on Repl.it](https://repl.it/badge/github/AstrBotDevs/AstrBot)](https://repl.it/github/AstrBotDevs/AstrBot)
-
-### AUR
-
-AUR deployment targets Arch Linux users who prefer installing AstrBot through the system package workflow.
-
-Run the command below to install `astrbot-git`, then start AstrBot in your local environment.
-
-```bash
-yay -S astrbot-git
+```
+astrbot-crypto-agent/
+├── main.py                    # Entry point
+├── compose.yml                # Docker Compose
+├── Dockerfile                 # Docker build
+├── requirements.txt           # Python dependencies
+├── setup_config.py            # Render.com config generator
+├── start.sh                   # Docker startup script
+│
+├── astrbot/                   # Core bot engine
+│   ├── core/
+│   │   ├── agent/             # Agent framework + MCP
+│   │   ├── platform/          # 18 platform adapters
+│   │   ├── provider/          # 35 LLM/TTS/STT providers
+│   │   ├── pipeline/          # Message processing pipeline
+│   │   ├── knowledge_base/    # RAG with FAISS
+│   │   ├── star/              # Plugin system
+│   │   └── tools/             # Built-in tools
+│   └── cli/                   # CLI commands
+│
+├── dashboard/                 # Vue 3 WebUI (source)
+├── skills/                    # Custom skills
+│   └── research/
+│       └── crypto-research/   # 🔍 Crypto research skill
+│           ├── SKILL.md
+│           └── scripts/
+│               ├── full_research.py       # Full 6-phase pipeline
+│               ├── coingecko_search.py    # CoinGecko API
+│               ├── dexscreener_search.py  # DEXScreener API
+│               ├── exchange_prices.py     # 9 CEX exchanges
+│               ├── twitter_search.py      # X/Twitter + sentiment
+│               └── meme_platforms.py      # RugCheck + meme platforms
+│
+├── docs/                      # Documentation site
+├── k8s/                       # Kubernetes manifests
+└── tests/                     # Test suite
 ```
 
-**More deployment methods**
+## 🔧 Deployment
 
-If you need panel-based management or deeper customization, see [BT-Panel Deployment](https://docs.astrbot.app/deploy/astrbot/btpanel.html) for BT Panel app-store setup, [1Panel Deployment](https://docs.astrbot.app/deploy/astrbot/1panel.html) for 1Panel app-market deployment, [CasaOS Deployment](https://docs.astrbot.app/deploy/astrbot/casaos.html) for NAS/home-server visual deployment, and [Manual Deployment](https://docs.astrbot.app/deploy/astrbot/cli.html) for fully custom source-based installation with `uv`.
-
-## Supported Messaging Platforms
-
-Connect AstrBot to your favorite chat platform.
-
-| Platform | Maintainer |
-|---------|---------------|
-| QQ | Official |
-| OneBot v11 protocol implementation | Official |
-| Telegram | Official |
-| Wecom & Wecom AI Bot | Official |
-| WeChat Official Accounts | Official |
-| Feishu (Lark) | Official |
-| DingTalk | Official |
-| Slack | Official |
-| Discord | Official |
-| LINE | Official |
-| Satori | Official |
-| KOOK | Official |
-| Misskey | Official |
-| Mattermost | Official |
-| WhatsApp (Coming Soon) | Official |
-| [Matrix](https://github.com/stevessr/astrbot_plugin_matrix_adapter) | Community |
-| [Rocket.Chat](https://github.com/NET-Homeless/astrbot_plugin_rocket_chat_adapter) | Community |
-| [VoceChat](https://github.com/HikariFroya/astrbot_plugin_vocechat) | Community |
-
-## Supported Model Services
-
-| Service | Type |
-|---------|---------------|
-| OpenAI and Compatible Services | LLM Services |
-| Anthropic | LLM Services |
-| Google Gemini | LLM Services |
-| Moonshot AI | LLM Services |
-| Zhipu AI | LLM Services |
-| DeepSeek | LLM Services |
-| Ollama (Self-hosted) | LLM Services |
-| LM Studio (Self-hosted) | LLM Services |
-| [AIHubMix](https://aihubmix.com/?aff=4bfH) | LLM Services (API Gateway, supports all models) |
-| [CompShare](https://www.compshare.cn/?ytag=GPU_YY-gh_astrbot&referral_code=FV7DcGowN4hB5UuXKgpE74) | LLM Services |
-| [302.AI](https://share.302.ai/rr1M3l) | LLM Services |
-| [TokenPony](https://www.tokenpony.cn/3YPyf) | LLM Services |
-| [SiliconFlow](https://docs.siliconflow.cn/cn/usercases/use-siliconcloud-in-astrbot) | LLM Services |
-| [PPIO Cloud](https://ppio.com/user/register?invited_by=AIOONE) | LLM Services |
-| ModelScope | LLM Services |
-| OneAPI | LLM Services |
-| Dify | LLMOps Platforms |
-| Alibaba Cloud Bailian Applications | LLMOps Platforms |
-| Coze | LLMOps Platforms |
-| OpenAI Whisper | Speech-to-Text Services |
-| SenseVoice | Speech-to-Text Services |
-| Xiaomi MiMo Omni | Speech-to-Text Services |
-| OpenAI TTS | Text-to-Speech Services |
-| Gemini TTS | Text-to-Speech Services |
-| GPT-Sovits-Inference | Text-to-Speech Services |
-| GPT-Sovits | Text-to-Speech Services |
-| FishAudio | Text-to-Speech Services |
-| Edge TTS | Text-to-Speech Services |
-| Alibaba Cloud Bailian TTS | Text-to-Speech Services |
-| Azure TTS | Text-to-Speech Services |
-| Minimax TTS | Text-to-Speech Services |
-| Xiaomi MiMo TTS | Text-to-Speech Services |
-| Volcano Engine TTS | Text-to-Speech Services |
-
-## ❤️ Sponsors
-
-<p align="center">
-  <img alt="sponsors" src="https://sponsors.astrbot.app/?v=1">
-</p>
-
-
-## ❤️ Contributing
-
-Issues and Pull Requests are always welcome! Feel free to submit your changes to this project :)
-
-### How to Contribute
-
-You can contribute by reviewing issues or helping with pull request reviews. Any issues or PRs are welcome to encourage community participation. Of course, these are just suggestions—you can contribute in any way you like. For adding new features, please discuss through an Issue first.
-
-### Development Environment
-
-AstrBot uses `ruff` for code formatting and linting.
+### Docker + Shipyard Sandbox (Code Execution)
 
 ```bash
-git clone https://github.com/AstrBotDevs/AstrBot
-pip install pre-commit
-pre-commit install
+docker compose -f compose-with-shipyard.yml up -d
 ```
 
+### Render.com
 
-## 🌍 Community
+1. Fork this repo
+2. Create a new **Web Service** on [Render](https://render.com)
+3. Set build command: `docker build -t astrbot .`
+4. Set start command: `python3 main.py`
+5. Environment variable: `PORT=10000`
 
-### QQ Groups
+### Kubernetes
 
-- Group 12: 916228568 (New)
-- Group 9: 1076659624 (Full)
-- Group 10: 1078079676 (Full)
-- Group 11: 704659519 (Full)
-- Group 1: 322154837 (Full)
-- Group 3: 630166526 (Full)
-- Group 4: 1077826412 (Full)
-- Group 5: 822130018 (Full)
-- Group 6: 753075035 (Full)
-- Group 7: 743746109 (Full)
-- Group 8: 1030353265 (Full)
+```bash
+kubectl apply -f k8s/astrbot/
+```
 
-- Developer Group(Chit-chat): 975206796
-- Developer Group(Formal): 1039761811
+### systemd (Linux)
 
-### Discord Server
+```bash
+sudo cp scripts/astrbot.service /etc/systemd/system/
+sudo systemctl enable astrbot
+sudo systemctl start astrbot
+```
 
-<a href="https://discord.gg/hAVk6tgV36"><img alt="Discord_community" src="https://img.shields.io/badge/Discord-AstrBot-purple?style=for-the-badge&color=76bad9"></a>
+## 📊 Crypto Research Examples
 
-## ❤️ Special Thanks
+### Full Pipeline
+```bash
+python3 skills/research/crypto-research/scripts/full_research.py "PEPE"
+python3 skills/research/crypto-research/scripts/full_research.py "VIRTUAL" --chain base
+```
 
-Special thanks to all Contributors and plugin developers for their contributions to AstrBot ❤️
+Output includes:
+- 📊 Price & volume (CoinGecko)
+- 🔄 DEX pairs & liquidity (DEXScreener)
+- 🏦 Prices across 9 exchanges with spread analysis
+- 🐦 X/Twitter sentiment with bullish/bearish signals
+- 🛡️ RugCheck safety score (Solana tokens)
+- 🔥 Trending tokens
+- ⚠️ Automated risk assessment
 
-<a href="https://github.com/AstrBotDevs/AstrBot/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=AstrBotDevs/AstrBot&max=200&columns=14" />
-</a>
+### X/Twitter Search (Agent Mode)
+```bash
+# Agent gathers data via web_search, saves to JSON, feeds to script
+python3 skills/research/crypto-research/scripts/twitter_search.py "PEPE" --input results.json
+python3 skills/research/crypto-research/scripts/twitter_search.py "PEPE" --json
+```
 
-Additionally, the birth of this project would not have been possible without the help of the following open-source projects:
+### Exchange Price Comparison
+```bash
+python3 skills/research/crypto-research/scripts/exchange_prices.py "BTC"
+```
+```
+Exchange              Price    24h Chg    24h Volume
+Binance          $67,432.10    +2.34%      $1.2B
+Bybit            $67,428.50    +2.31%      $890M
+OKX              $67,435.20    +2.36%      $456M
+...
+Price Spread: 0.012% ✅ Normal
+```
 
-- [NapNeko/NapCatQQ](https://github.com/NapNeko/NapCatQQ) - The amazing cat framework
+## 🛡️ Security
 
-## ⭐ Star History
+- All crypto research scripts use **only Python stdlib** (no third-party packages)
+- No API keys stored in code — configure via dashboard
+- Branch protection enabled on `main` (no force push, no deletion)
+- AGPL-3.0 license ensures modifications stay open source
 
-> [!TIP]
-> If this project has helped you in your life or work, or if you're interested in its future development, please give the project a Star. It's the driving force behind maintaining this open-source project <3
+## 🤝 Contributing
 
-<div align="center">
+1. Fork the repo
+2. Create a feature branch (`git checkout -b feature/my-feature`)
+3. Commit your changes
+4. Push to the branch (`git push origin feature/my-feature`)
+5. Open a Pull Request
 
-[![Star History Chart](https://api.star-history.com/svg?repos=astrbotdevs/astrbot&type=Date)](https://star-history.com/#astrbotdevs/astrbot&Date)
+## 📄 License
 
-</div>
+This project is licensed under [AGPL-3.0-or-later](LICENSE).
 
-<div align="center">
+The crypto research skill (`skills/research/crypto-research/`) is licensed under MIT.
 
-_Companionship and capability should never be at odds. What we aim to create is a robot that can understand emotions, provide genuine companionship, and reliably accomplish tasks._
+## 🔗 Links
 
-_私は、高性能ですから!_
+- [AstrBot Documentation](https://astrbot.soulter.top)
+- [AstrBot GitHub](https://github.com/Soulter/AstrBot)
+- [Plugin Marketplace](https://astrbot.soulter.top/store/plugins)
+- [Telegram Bot](https://t.me) — Create your bot with @BotFather
 
-<img src="https://files.astrbot.app/watashiwa-koseino-desukara.gif" width="100"/>
-</div>
+## 💡 Support
+
+- [GitHub Issues](https://github.com/Dima12348/astrbot-crypto-agent/issues)
+- [AstrBot Discord](https://discord.gg/astrbot)
