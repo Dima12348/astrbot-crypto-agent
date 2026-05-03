@@ -164,6 +164,10 @@ class PlatformManager:
                     from .sources.weixin_official_account.weixin_offacc_adapter import (
                         WeixinOfficialAccountPlatformAdapter,  # noqa: F401
                     )
+                case "discord":
+                    from .sources.discord.discord_platform_adapter import (
+                        DiscordPlatformAdapter,  # noqa: F401
+                    )
                 case "misskey":
                     from .sources.misskey.misskey_adapter import (
                         MisskeyPlatformAdapter,  # noqa: F401
