@@ -82,34 +82,58 @@ The script outputs a price table with spread analysis — if spread > 1%, flag a
 
 ### Phase 3 — X/Twitter Sentiment (2-5 min)
 
-Search for social buzz around the token. Use multiple angles.
+Search for social buzz around the token. The `twitter_search.py` script analyzes X/Twitter mentions and provides sentiment analysis.
 
-**Option A — Web search (fastest, use web_search):**
+```bash
+# Standalone mode — direct web search + Nitter scraping
+python3 ${HERMES_SKILL_DIR}/scripts/twitter_search.py "PEPE crypto"
+
+# Agent mode (recommended) — feed pre-fetched data for analysis
+# 1. Agent gathers data via web_search/web_extract
+# 2. Saves to JSON file
+# 3. Feeds to script for parsing & sentiment
+python3 ${HERMES_SKILL_DIR}/scripts/twitter_search.py "PEPE" --input results.json
+
+# Or via stdin
+echo '{"web_results":[...]}' | python3 ${HERMES_SKILL_DIR}/scripts/twitter_search.py "PEPE" --stdin
+
+# JSON-only output (for piping/processing)
+python3 ${HERMES_SKILL_DIR}/scripts/twitter_search.py "PEPE" --json
 ```
-web_search(query="TOKEN_SYMBOL crypto pump today site:x.com OR site:twitter.com")
+
+**Agent workflow (recommended):**
+
+When standalone scraping fails (VPS IPs blocked by search engines/CAPTCHAs), the agent should use its own `web_search` and `web_extract` tools:
+
+```
+# Step 1: Agent gathers data
+web_search(query="TOKEN_SYMBOL crypto pump site:x.com OR site:twitter.com")
 web_search(query="TOKEN_SYMBOL crypto news today")
 web_search(query="TOKEN_SYMBOL listing announcement")
+web_extract(urls=["https://nitter.tiekoetter.com/search?f=tweets&q=TOKEN_SYMBOL+crypto"])
+
+# Step 2: Save results to JSON
+# Format: {"web_results": [{"title":"...", "url":"...", "snippet":"..."}],
+#          "nitter_html": "<raw html>", "nitter_instance": "https://nitter.tiekoetter.com"}
+
+# Step 3: Feed to script
+python3 ${HERMES_SKILL_DIR}/scripts/twitter_search.py "TOKEN_SYMBOL" --input results.json
 ```
 
-**Option B — Nitter instances (no auth needed):**
-```
-web_extract(urls=["https://nitter.privacydev.net/search?f=tweets&q=TOKEN_SYMBOL+crypto"])
-web_extract(urls=["https://nitter.poast.org/search?f=tweets&q=TOKEN_SYMBOL+crypto"])
-```
+The script provides:
+- X/Twitter web search results (links, snippets)
+- Nitter tweet parsing (text, likes, retweets, replies)
+- Keyword-based sentiment analysis (bullish/bearish signals)
+- Structured report with engagement metrics
 
-**Option C — Direct X search (if web_search covers it):**
-```
-web_search(query="TOKEN_SYMBOL from:coingecko OR from:binabory OR from:whale_alert")
-```
-
-Look for:
+**Look for:**
 - Influencer mentions (KOLs with 50k+ followers)
 - Listing announcements from exchanges
 - Partnership news
 - Coordinated shill campaigns (multiple accounts posting same text)
 - FUD or scam allegations
 
-**Note:** AstrBot has no native X/Twitter platform adapter. All X/Twitter research is done via web_search and Nitter scraping.
+**Note:** AstrBot has no native X/Twitter platform adapter. All X/Twitter research is done via web_search, Nitter scraping, and the `twitter_search.py` script.
 
 ### Phase 4 — Meme Token Platforms (2-3 min)
 
@@ -255,7 +279,7 @@ or does it look like manipulation/paid promotion?]
 | DexTools | DEX pair explorer, charts | `web_search` (API behind Cloudflare) |
 | Pump.fun | Solana token launcher data | `web_search` (API behind Cloudflare) |
 | Birdeye | Solana token analytics | `web_search` (API behind Cloudflare) |
-| X/Twitter | Social sentiment, news, KOL mentions | `web_search` / Nitter |
+| X/Twitter | Social sentiment, news, KOL mentions | `scripts/twitter_search.py` + `web_search` / Nitter |
 | Arkham | Whale wallets, entity tracking, fund flows | `web_search` + `web_extract` |
 | Etherscan | ERC-20 transfers, holders, contracts | `web_extract` (free tier) |
 
@@ -307,18 +331,31 @@ python3 ${HERMES_SKILL_DIR}/scripts/exchange_prices.py "PEPE"
 python3 ${HERMES_SKILL_DIR}/scripts/meme_platforms.py "WIF"
 python3 ${HERMES_SKILL_DIR}/scripts/meme_platforms.py "DEZ...263" --chain solana
 
-# Full research pipeline (runs all 5 phases, outputs report)
+# X/Twitter sentiment search (standalone + agent modes)
+python3 ${HERMES_SKILL_DIR}/scripts/twitter_search.py "PEPE crypto"
+python3 ${HERMES_SKILL_DIR}/scripts/twitter_search.py "PEPE" --input results.json
+python3 ${HERMES_SKILL_DIR}/scripts/twitter_search.py "PEPE" --json
+
+# Full research pipeline (runs all 6 phases, outputs report)
 python3 ${HERMES_SKILL_DIR}/scripts/full_research.py "PEPE"
 python3 ${HERMES_SKILL_DIR}/scripts/full_research.py "VIRTUAL" --chain base
+python3 ${HERMES_SKILL_DIR}/scripts/full_research.py "PEPE" --twitter-input twitter_data.json
 ```
 
 ## X/Twitter Integration Note
 
-AstrBot has **no native X/Twitter platform adapter**. There is no built-in way to post to X, read timelines, or interact with X/Twitter. The crypto research skill uses `web_search` and Nitter public instances to scrape X/Twitter content as part of its research workflow.
+AstrBot has **no native X/Twitter platform adapter**. The crypto research skill uses:
+- `twitter_search.py` — dedicated script with standalone web search + Nitter scraping + sentiment analysis
+- Agent `web_search` / `web_extract` tools — primary method for gathering X/Twitter data from VPS
+- Nitter instances (e.g., `nitter.tiekoetter.com`) — public X/Twitter frontends, no auth needed
 
-If you need deeper X/Twitter integration:
+The recommended agent workflow:
+1. Use `web_search` to find X/Twitter mentions
+2. Use `web_extract` to scrape Nitter pages
+3. Save results to JSON and feed to `twitter_search.py --input` for parsing + sentiment analysis
+
+For deeper X/Twitter integration:
 - Add a Twitter MCP server to AstrBot's MCP configuration (dashboard → Extensions → MCP Servers)
-- Use `web_search` for X/Twitter content as a workaround
 - Consider adding a custom platform adapter for X/Twitter
 
 ## Notes

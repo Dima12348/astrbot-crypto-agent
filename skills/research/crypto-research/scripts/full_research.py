@@ -5,16 +5,20 @@ Runs all research phases:
   1. Price & Volume (CoinGecko)
   2. DEX Pairs & Liquidity (DEXScreener)
   3. Exchange prices across 9 CEX (Binance, Bybit, OKX, KuCoin, Gate.io, MEXC, Bitget, HTX, Hyperliquid)
-  4. Meme platforms (RugCheck safety, DEXScreener trending)
-  5. Compiles a structured report
+  4. X/Twitter Sentiment (web search + Nitter)
+  5. Meme platforms (RugCheck safety, DEXScreener trending)
+  6. Compiles a structured report
 
 Usage:
     python full_research.py "PEPE"
     python full_research.py "VIRTUAL" --chain base
+    python full_research.py "PEPE" --twitter-input twitter_data.json
     python full_research.py "0xdAC17F958D2ee523a2206206994597C13D831ec7"  # by contract
 """
 import sys
+import os
 import json
+import subprocess
 import urllib.request
 import urllib.error
 import urllib.parse
@@ -266,11 +270,44 @@ def query_all_exchanges(symbol):
     return results
 
 
-# ─── Phase 4: Meme Platforms (RugCheck) ───────────────────────────────
+# ─── Phase 4: X/Twitter Sentiment ─────────────────────────────────────
+
+def twitter_search(query, twitter_input=None):
+    """Run twitter_search.py and return parsed results."""
+    print("  [4/6] X/Twitter — sentiment analysis...")
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    script = os.path.join(script_dir, "twitter_search.py")
+    cmd = [sys.executable, script, query, "--json", "--top", "10"]
+    if twitter_input:
+        cmd.extend(["--input", twitter_input])
+
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        if proc.returncode == 0 and proc.stdout.strip():
+            data = json.loads(proc.stdout.strip())
+            tw = len(data.get("web_results", []))
+            nt = len(data.get("nitter_tweets", []))
+            eng = data.get("engine", "?")
+            src = data.get("source", "?")
+            print(f"    Found {tw} web + {nt} Nitter tweets ({src}, {eng})")
+            return data
+        else:
+            err = proc.stderr.strip()[:120] if proc.stderr else "no output"
+            print(f"    No data ({err})")
+            return None
+    except subprocess.TimeoutExpired:
+        print("    Timeout (60s)")
+        return None
+    except Exception as e:
+        print(f"    Error: {e}")
+        return None
+
+
+# ─── Phase 5: Meme Platforms (RugCheck) ───────────────────────────────
 
 def rugcheck_summary(contract_address):
     """Get RugCheck safety summary for a Solana token."""
-    print("  [4/5] RugCheck — token safety (Solana)...")
+    print("  [5/6] RugCheck — token safety (Solana)...")
     url = f"https://api.rugcheck.xyz/v1/tokens/{contract_address}/report/summary"
     data = api_get(url)
     if "error" in data:
@@ -286,7 +323,7 @@ def rugcheck_summary(contract_address):
 
 def dexscreener_trending():
     """Get DEXScreener trending/boosted tokens."""
-    print("  [5/5] DEXScreener — trending tokens...")
+    print("  [6/6] DEXScreener — trending tokens...")
     url = "https://api.dexscreener.com/token-boosts/top/v1"
     data = api_get(url)
     if isinstance(data, list):
@@ -297,7 +334,7 @@ def dexscreener_trending():
 
 # ─── Report Compilation ───────────────────────────────────────────────
 
-def compile_report(query, cg_data, dex_pairs, exchange_results, rugcheck_data, trending):
+def compile_report(query, cg_data, dex_pairs, exchange_results, twitter_data, rugcheck_data, trending):
     """Compile all data into a structured report."""
     symbol = query.upper()
     name = symbol
@@ -407,6 +444,59 @@ def compile_report(query, cg_data, dex_pairs, exchange_results, rugcheck_data, t
     else:
         print(f"  Not found on any exchange")
 
+    # ── X/Twitter Sentiment ──
+    if twitter_data:
+        tw_results = twitter_data.get("web_results", [])
+        nt_tweets = twitter_data.get("nitter_tweets", [])
+        sentiment = twitter_data.get("sentiment")
+        source = twitter_data.get("source", "unknown")
+
+        print(f"\n  🐦 X/TWITTER SENTIMENT")
+        print(f"  {'─'*45}")
+        print(f"  Source: {source} | Web: {len(tw_results)} | Nitter: {len(nt_tweets)}")
+
+        if tw_results:
+            print(f"\n  Top X/Twitter mentions:")
+            for i, r in enumerate(tw_results[:5], 1):
+                title = r.get("title", "")[:70]
+                print(f"    [{i}] {title}")
+
+        if nt_tweets:
+            print(f"\n  Top Nitter tweets:")
+            for i, t in enumerate(nt_tweets[:5], 1):
+                name = t.get("display_name", "") or t.get("username", "?")
+                text = t.get("text", "")
+                if len(text) > 100:
+                    text = text[:97] + "..."
+                likes = t.get("likes", 0)
+                rts = t.get("retweets", 0)
+                print(f"    [{i}] {name}: {text}")
+                print(f"         ❤️ {likes} 🔁 {rts}")
+
+        if sentiment:
+            total = sentiment["positive"] + sentiment["negative"]
+            if total > 0:
+                pos_pct = sentiment["positive"] / total * 100
+                neg_pct = sentiment["negative"] / total * 100
+                label = "🟢 BULLISH" if pos_pct > 70 else ("🔴 BEARISH" if neg_pct > 70 else "🟡 MIXED")
+                print(f"\n  Sentiment: {label} "
+                      f"(+{sentiment['positive']} / -{sentiment['negative']})")
+                if sentiment["pos_keywords"]:
+                    print(f"  Bullish signals: {', '.join(sentiment['pos_keywords'][:6])}")
+                if sentiment["neg_keywords"]:
+                    print(f"  Bearish signals: {', '.join(sentiment['neg_keywords'][:6])}")
+            else:
+                print(f"\n  Sentiment: ⚪ No clear signals")
+        else:
+            print(f"\n  Sentiment: ⚪ No data available")
+    else:
+        print(f"\n  🐦 X/TWITTER SENTIMENT")
+        print(f"  {'─'*45}")
+        print(f"  ⚪ No X/Twitter data (web search may be blocked from server)")
+        print(f"  Agent should use web_search to gather X/Twitter data")
+        print(f"     web_search(query=\"{symbol} crypto pump site:x.com\")")
+        print(f"     web_search(query=\"{symbol} crypto news today\")")
+
     # ── RugCheck (Solana) ──
     if rugcheck_data:
         print(f"\n  🛡️  RUGCHECK SAFETY (Solana)")
@@ -513,6 +603,22 @@ def compile_report(query, cg_data, dex_pairs, exchange_results, rugcheck_data, t
         if any(r["exchange"] == "Hyperliquid (perps)" for r in exchange_results):
             positives.append("Has Hyperliquid perps market")
 
+    if twitter_data:
+        sentiment = twitter_data.get("sentiment")
+        if sentiment:
+            total = sentiment["positive"] + sentiment["negative"]
+            if total > 0:
+                pos_pct = sentiment["positive"] / total * 100
+                if pos_pct > 70:
+                    positives.append(f"X/Twitter sentiment BULLISH ({pos_pct:.0f}% positive)")
+                elif pos_pct < 30:
+                    risks.append(f"X/Twitter sentiment BEARISH ({100-pos_pct:.0f}% negative)")
+            neg_kw = sentiment.get("neg_keywords", [])
+            if "scam" in neg_kw or "rug" in neg_kw or "rugpull" in neg_kw:
+                risks.append("X/Twitter mentions scam/rug — verify legitimacy")
+            if "shill" in neg_kw or "bot" in neg_kw:
+                risks.append("X/Twitter reports coordinated shilling/bot activity")
+
     if rugcheck_data:
         rc_score = rugcheck_data.get("score_normalised", 0)
         if isinstance(rc_score, (int, float)):
@@ -549,9 +655,10 @@ def compile_report(query, cg_data, dex_pairs, exchange_results, rugcheck_data, t
         sources.append("RugCheck")
     print(f"\n  Data sources: {', '.join(sources)}")
 
-    print(f"\n  🔗 For X/Twitter sentiment, use web_search:")
+    print(f"\n  🔗 For deeper X/Twitter analysis, use web_search:")
     print(f"     web_search(query=\"{symbol} crypto pump site:x.com\")")
     print(f"     web_search(query=\"{symbol} crypto news today\")")
+    print(f"     Save results to JSON, then: python3 twitter_search.py \"{symbol}\" --input results.json")
 
     print(f"\n  🔗 For meme platforms, use web_search:")
     print(f"     web_search(query=\"{symbol} site:gmgn.ai\")")
@@ -572,9 +679,14 @@ def main():
         sys.exit(0)
 
     chain_filter = None
+    twitter_input = None
     if "--chain" in args:
         idx = args.index("--chain")
         chain_filter = args[idx + 1]
+        args = args[:idx] + args[idx+2:]
+    if "--twitter-input" in args:
+        idx = args.index("--twitter-input")
+        twitter_input = args[idx + 1]
         args = args[:idx] + args[idx+2:]
 
     query = " ".join(args)
@@ -582,6 +694,8 @@ def main():
 
     print(f"🔍 Starting crypto research for: {query}")
     print(f"   Chain filter: {chain_filter or 'all'}")
+    if twitter_input:
+        print(f"   Twitter input: {twitter_input}")
     print()
 
     # Phase 1: CoinGecko
@@ -595,7 +709,11 @@ def main():
     # Phase 3: All Exchange Prices
     exchange_results = query_all_exchanges(symbol_guess)
 
-    # Phase 4: RugCheck (Solana tokens)
+    # Phase 4: X/Twitter Sentiment
+    tw_query = f"{symbol_guess} crypto"
+    tw_data = twitter_search(tw_query, twitter_input)
+
+    # Phase 5: RugCheck (Solana tokens)
     rugcheck_data = None
     if dex_pairs:
         sol_pairs = [p for p in dex_pairs if p.get("chainId") == "solana"]
@@ -604,11 +722,11 @@ def main():
             if contract:
                 rugcheck_data = rugcheck_summary(contract)
 
-    # Phase 5: DEXScreener Trending
+    # Phase 6: DEXScreener Trending
     trending = dexscreener_trending()
 
     # Compile report
-    compile_report(query, cg_data, dex_pairs, exchange_results, rugcheck_data, trending)
+    compile_report(query, cg_data, dex_pairs, exchange_results, tw_data, rugcheck_data, trending)
 
 
 if __name__ == "__main__":
