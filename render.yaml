@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: astrbot-crypto-agent
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    envVars:
+      - key: PORT
+        value: "6185"
+      - key: TZ
+        value: "Europe/Kyiv"
+    healthCheckPath: /
