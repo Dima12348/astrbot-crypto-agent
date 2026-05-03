@@ -2,7 +2,7 @@
 
 A fork of [AstrBot](https://github.com/Soulter/AstrBot) — an open-source multi-platform AI chatbot — extended with a **crypto research skill** for token analysis, exchange price comparison, and X/Twitter sentiment tracking.
 
-> ⚠️ **This is a RESEARCH tool, NOT financial advice. Always DYOR.**
+> 📌 **AstrBot** створений та підтримується [Soulter](https://github.com/Soulter). Цей форк — робота ентузіаста, який адаптував агента під власні задачі крипто-досліджень. Всі права на оригінальний AstrBot належать його автору.
 
 ## ✨ Features
 
